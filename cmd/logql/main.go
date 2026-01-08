@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -27,7 +28,9 @@ var internalLabels = labels.Labels{{Name: "__internal__"}}
 
 var (
 	skipLabels bool
-	cmd        = &cobra.Command{
+	dropLabels []string
+
+	cmd = &cobra.Command{
 		Use:   "logql (file) <logql query>",
 		Short: "A simple LogQL query processor that reads log lines from stdin and outputs processed log lines to stdout.",
 		Args:  cobra.RangeArgs(1, 2),
@@ -80,7 +83,11 @@ func formatLabels(ls labels.Labels) string {
 	var b bytes.Buffer
 
 	b.WriteString(color.New(red).Sprint("{"))
-	for i, l := range ls {
+	i := 0
+	for _, l := range ls {
+		if dropLabel(l) {
+			continue
+		}
 		if i > 0 {
 			b.WriteByte(',')
 			b.WriteByte(' ')
@@ -88,9 +95,19 @@ func formatLabels(ls labels.Labels) string {
 		b.WriteString(color.New(gray).Sprint(l.Name))
 		b.WriteByte('=')
 		b.WriteString(color.New(blue).Sprint(strconv.Quote(l.Value)))
+		i++
 	}
 	b.WriteString(color.New(red).Sprint("}"))
 	return b.String()
+}
+
+func dropLabel(l labels.Label) bool {
+	for _, v := range dropLabels {
+		if matched, _ := path.Match(v, l.Name); matched || l.Name == v {
+			return true
+		}
+	}
+	return false
 }
 
 func main() {
@@ -101,5 +118,6 @@ func main() {
 }
 
 func init() {
-	cmd.Flags().BoolVar(&skipLabels, "skip-labels", false, "Skip printing labels in output")
+	cmd.Flags().BoolVarP(&skipLabels, "skip-labels", "s", false, "Skip printing labels in output")
+	cmd.Flags().StringSliceVarP(&dropLabels, "drop-label", "d", []string{}, "Labels to drop from output, supports globs")
 }
