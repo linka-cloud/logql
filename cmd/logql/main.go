@@ -28,11 +28,14 @@ var internalLabels = labels.Labels{{Name: "__internal__"}}
 var (
 	skipLabels bool
 	cmd        = &cobra.Command{
-		Use:   "logql <logql query> (file)",
+		Use:   "logql (file) <logql query>",
 		Short: "A simple LogQL query processor that reads log lines from stdin and outputs processed log lines to stdout.",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			q := os.Args[1]
+			q := args[0]
+			if len(args) == 2 {
+				q = args[1]
+			}
 			if i := strings.IndexRune(q, '}'); q[0] == '{' && i > 0 {
 				q = q[i+1:]
 			}
@@ -49,7 +52,7 @@ var (
 			}
 			in := os.Stdin
 			if len(args) == 2 {
-				f, err := os.Open(args[1])
+				f, err := os.Open(args[0])
 				if err != nil {
 					return err
 				}
